@@ -1,26 +1,19 @@
 
 Download link for this Fork:  https://github.com/Cybersonics/Collaborative_Pathplanner_103_Fork/releases/download/v2/PathPlannerGhost_Windows.zip
 
+This executable is not signed, so windows will show the "Protected your PC" message. Click on "More Info" and "Run anyway" and you should be off to the races.
 
 
 
 
 
-
-
-
-[![PathPlanner](https://github.com/mjansen4857/pathplanner/actions/workflows/pathplanner-ci.yaml/badge.svg)](https://github.com/mjansen4857/pathplanner/actions/workflows/pathplanner-ci.yaml)
-[![codecov](https://codecov.io/gh/mjansen4857/pathplanner/branch/main/graph/badge.svg?token=RRJY4YR69W)](https://codecov.io/gh/mjansen4857/pathplanner)
-[![PathPlannerLib](https://github.com/mjansen4857/pathplanner/actions/workflows/pplib-ci.yml/badge.svg)](https://github.com/mjansen4857/pathplanner/actions/workflows/pplib-ci.yml)
 
 # PathPlanner
 <a href="https://www.microsoft.com/en-us/p/frc-pathplanner/9nqbkb5dw909?cid=storebadge&ocid=badge&rtc=1&activetab=pivot:overviewtab"><img src="https://mjansen4857.com/badges/windows.svg" height=50></a>
 &nbsp;&nbsp;&nbsp;
 
-Download from the Microsoft Store to receive auto-updates for stable releases. Manual installs and pre-releases can be found [here](https://github.com/mjansen4857/pathplanner/releases).
-
 ## About
-![PathPlanner](https://github.com/user-attachments/assets/5b87c1a4-8fdb-4eb9-bf29-71f79a826a82)
+
 
 
 PathPlanner is a motion profile generator for FRC robots created by team 3015. The main features of PathPlanner include:
