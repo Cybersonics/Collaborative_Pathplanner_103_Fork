@@ -76,7 +76,7 @@ jobs:
         if: ${{ matrix.build-option == 'macos' }}
         run: |
           cd build/macos/Build/Products/Release
-          zip -r PathPlanner-macOS.zip PathPlanner.app --symlinks
+          zip -r PathPlanner-macOS.zip PathPlannerGhost.app --symlinks
 
       - name: Zip release (Linux)
         if: ${{ matrix.build-option == 'linux' }}
