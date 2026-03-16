@@ -35,7 +35,7 @@ void main() async {
           minimumSize: Size(400, 280),
           maximumSize: Size(400, 280),
           center: true,
-          title: 'PathPlanner Error',
+          title: 'PathPlannerGhost Error',
           titleBarStyle: TitleBarStyle.normal,
         );
 
@@ -77,7 +77,7 @@ void main() async {
       size: const Size(1280, 720),
       minimumSize: const Size(640, 360),
       center: true,
-      title: 'PathPlanner',
+      title: 'PathPlannerGhost',
       titleBarStyle:
           Platform.isMacOS ? TitleBarStyle.normal : TitleBarStyle.hidden,
     );
@@ -163,7 +163,7 @@ class _PathPlannerState extends State<PathPlanner> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PathPlanner',
+      title: 'PathPlannerGhost',
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: _teamColor,

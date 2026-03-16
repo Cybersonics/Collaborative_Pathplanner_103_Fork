@@ -112,9 +112,9 @@ flutter:
   # see https://flutter.dev/custom-fonts/#from-packages
 
 msix_config:
-  display_name: FRC PathPlanner
+  display_name: FRC PathPlannerGhost
   publisher_display_name: Michael Jansen
-  identity_name: 39956MichaelJansen.FRCPathPlanner
+  identity_name: 39956MichaelJansen.FRCPathPlannerGhost
   publisher: CN=2DF9861F-6D68-40A5-BCD2-A0BC837334E3
   logo_path: windows/icon.png
   languages: en-us

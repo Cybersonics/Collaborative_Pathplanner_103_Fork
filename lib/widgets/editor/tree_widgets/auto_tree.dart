@@ -71,7 +71,7 @@ class _AutoTreeState extends State<AutoTree> {
             children: [
               Flexible(
                 child: Text(
-                  'Simulated Driving Time: ~${(widget.autoRuntime ?? 0).toStringAsFixed(2)}s',
+                  'Simulated Auto Time: ~${(widget.autoRuntime ?? 0).toStringAsFixed(2)}s',
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 18),
                 ),

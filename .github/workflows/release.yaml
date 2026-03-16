@@ -1,0 +1,140 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+
+env:
+  FLUTTER_VERSION: 3.35.7
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            build-option: "windows"
+            artifact-path: "build/windows/x64/runner/Release"
+            artifact-name: PathPlanner-Windows
+          - os: macos-15
+            build-option: "macos"
+            artifact-path: "build/macos/Build/Products/Release/PathPlanner-macOS.zip"
+            artifact-name: PathPlanner-macOS
+          - os: ubuntu-22.04
+            build-option: "linux"
+            artifact-path: "build/linux/x64/release/bundle"
+            artifact-name: PathPlanner-Linux
+
+    name: "Build - ${{ matrix.artifact-name }}"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Install flutter deps (Linux)
+        if: ${{ matrix.build-option == 'linux' }}
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ninja-build libgtk-3-dev
+
+      - name: Setup flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          cache-path: ${{ runner.tool_cache }}/flutter/${{ matrix.build-option }}
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Set version env (non-Windows)
+        if: ${{ matrix.build-option != 'windows' }}
+        run: echo "VERSION_NAME=3.0.${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Set version env (Windows)
+        if: ${{ matrix.build-option == 'windows' }}
+        run: Add-Content -Path ${env:GITHUB_ENV} -Value "VERSION_NAME=3.0.${{ github.run_number }}"
+
+      - name: Set pubspec version
+        run: |
+          flutter pub global activate cider
+          dart run cider version "${{ env.VERSION_NAME }}+${{ github.run_number }}"
+
+      - name: Build app
+        run: flutter build ${{ matrix.build-option }}
+
+      - name: Copy redist (Windows)
+        if: ${{ matrix.build-option == 'windows' }}
+        run: |
+          cp windows/redist/msvcp140.dll build/windows/x64/runner/Release
+          cp windows/redist/vcruntime140.dll build/windows/x64/runner/Release
+          cp windows/redist/vcruntime140_1.dll build/windows/x64/runner/Release
+
+      - name: Zip release (macOS)
+        if: ${{ matrix.build-option == 'macos' }}
+        run: |
+          cd build/macos/Build/Products/Release
+          zip -r PathPlanner-macOS.zip PathPlanner.app --symlinks
+
+      - name: Zip release (Linux)
+        if: ${{ matrix.build-option == 'linux' }}
+        run: |
+          cd build/linux/x64/release
+          tar -czf PathPlanner-Linux.tar.gz bundle
+
+      - name: Zip release (Windows)
+        if: ${{ matrix.build-option == 'windows' }}
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "build/windows/x64/runner/Release/*" -DestinationPath "build/windows/x64/runner/PathPlanner-Windows.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: |
+            ${{ matrix.build-option == 'macos' && 'build/macos/Build/Products/Release/PathPlanner-macOS.zip' || '' }}
+            ${{ matrix.build-option == 'linux' && 'build/linux/x64/release/PathPlanner-Linux.tar.gz' || '' }}
+            ${{ matrix.build-option == 'windows' && 'build/windows/x64/runner/PathPlanner-Windows.zip' || '' }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="v3.0.${{ github.run_number }}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Generated tag: $TAG"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "Release ${{ steps.tag.outputs.tag }}"
+          body: |
+            Automated build from commit ${{ github.sha }}.
+
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            **Message:** ${{ github.event.head_commit.message }}
+          prerelease: false
+          generate_release_notes: false
+          files: |
+            artifacts/PathPlanner-Windows/PathPlanner-Windows.zip
+            artifacts/PathPlanner-macOS/PathPlanner-macOS.zip
+            artifacts/PathPlanner-Linux/PathPlanner-Linux.tar.gz

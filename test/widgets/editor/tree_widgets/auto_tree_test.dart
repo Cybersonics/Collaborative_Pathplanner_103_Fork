@@ -23,7 +23,7 @@ void main() {
     sideSwapped = false;
   });
 
-  testWidgets('has simulated driving time', (widgetTester) async {
+  testWidgets('has simulated auto time', (widgetTester) async {
     await widgetTester.pumpWidget(MaterialApp(
       home: Scaffold(
         body: AutoTree(
@@ -35,7 +35,7 @@ void main() {
       ),
     ));
 
-    expect(find.textContaining('Simulated Driving Time'), findsOneWidget);
+    expect(find.textContaining('Simulated Auto Time'), findsOneWidget);
   });
 
   testWidgets('swap side button', (widgetTester) async {

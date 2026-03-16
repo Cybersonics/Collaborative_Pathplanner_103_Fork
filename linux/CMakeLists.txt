@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(runner LANGUAGES CXX)
 
-set(BINARY_NAME "pathplanner")
-set(APPLICATION_ID "com.mjansen4857.pathplanner")
+set(BINARY_NAME "pathplannerghost")
+set(APPLICATION_ID "com.mjansen4857.pathplannerghost")
 
 cmake_policy(SET CMP0063 NEW)
 

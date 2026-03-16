@@ -436,21 +436,37 @@ class _SplitAutoEditorState extends State<SplitAutoEditor>
 
   /// Compute the time offset (in seconds) at which the given [pathName]
   /// starts within the full auto trajectory. This mirrors the chaining logic
-  /// in [AutoSimulator.simulateAuto] / the choreo path concatenation above.
+  /// in [AutoSimulator.simulateAuto] / the choreo path concatenation above,
+  /// including wait command durations.
   num _computeGhostTimeOffset(String pathName) {
+    List<SimSegment> segments =
+        AutoSimulator.extractSimSegments(widget.auto.sequence);
+
     if (widget.auto.choreoAuto) {
-      // Choreo paths: walk the choreo path list accumulating durations
+      // Build a map of choreo path durations
+      Map<String, num> choreoDurations = {
+        for (ChoreoPath cp in widget.autoChoreoPaths)
+          if (cp.trajectory.states.isNotEmpty)
+            cp.name: cp.trajectory.states.last.timeSeconds,
+      };
+
       num offset = 0;
-      for (ChoreoPath cp in widget.autoChoreoPaths) {
-        if (cp.name == pathName) return offset;
-        if (cp.trajectory.states.isNotEmpty) {
-          offset += cp.trajectory.states.last.timeSeconds;
+      for (SimSegment seg in segments) {
+        if (seg is SimPathSegment) {
+          if (seg.pathName == pathName) return offset;
+          offset += choreoDurations[seg.pathName] ?? 0;
+        } else if (seg is SimWaitSegment) {
+          offset += seg.waitSeconds;
         }
       }
       return offset;
     } else {
       // Standard paths: simulate each path individually to get durations
       RobotConfig config = RobotConfig.fromPrefs(widget.prefs);
+      Map<String, PathPlannerPath> pathMap = {
+        for (PathPlannerPath p in widget.autoPaths) p.name: p,
+      };
+
       num offset = 0;
       Pose2d startPose = widget.autoPaths.isNotEmpty
           ? Pose2d(widget.autoPaths[0].pathPoints[0].position,
@@ -458,27 +474,34 @@ class _SplitAutoEditorState extends State<SplitAutoEditor>
           : Pose2d(const Translation2d(0, 0), const Rotation2d());
       ChassisSpeeds startSpeeds = const ChassisSpeeds();
 
-      for (PathPlannerPath p in widget.autoPaths) {
-        if (p.name == pathName) return offset;
+      for (SimSegment seg in segments) {
+        if (seg is SimPathSegment) {
+          if (seg.pathName == pathName) return offset;
 
-        try {
-          PathPlannerTrajectory simPath = PathPlannerTrajectory(
-            path: p,
-            startingSpeeds: startSpeeds,
-            startingRotation: startPose.rotation,
-            robotConfig: config,
-          );
-          if (simPath.states.isNotEmpty &&
-              simPath.states.last.timeSeconds.isFinite) {
-            offset += simPath.states.last.timeSeconds;
-            startPose = Pose2d(
-              simPath.states.last.pose.translation,
-              simPath.states.last.pose.rotation,
+          PathPlannerPath? p = pathMap[seg.pathName];
+          if (p == null) continue;
+
+          try {
+            PathPlannerTrajectory simPath = PathPlannerTrajectory(
+              path: p,
+              startingSpeeds: startSpeeds,
+              startingRotation: startPose.rotation,
+              robotConfig: config,
             );
-            startSpeeds = simPath.states.last.fieldSpeeds;
+            if (simPath.states.isNotEmpty &&
+                simPath.states.last.timeSeconds.isFinite) {
+              offset += simPath.states.last.timeSeconds;
+              startPose = Pose2d(
+                simPath.states.last.pose.translation,
+                simPath.states.last.pose.rotation,
+              );
+              startSpeeds = simPath.states.last.fieldSpeeds;
+            }
+          } catch (_) {
+            // If simulation fails for a segment, just skip its contribution
           }
-        } catch (_) {
-          // If simulation fails for a segment, just skip its contribution
+        } else if (seg is SimWaitSegment) {
+          offset += seg.waitSeconds;
         }
       }
       return offset;
@@ -591,12 +614,45 @@ class _SplitAutoEditorState extends State<SplitAutoEditor>
       List<TrajectoryState> allStates = [];
       num timeOffset = 0.0;
 
-      for (ChoreoPath p in widget.autoChoreoPaths) {
-        for (TrajectoryState s in p.trajectory.states) {
-          allStates.add(s.copyWithTime(s.timeSeconds + timeOffset));
-        }
+      // Build a map of choreo paths by name for segment-based lookup
+      Map<String, ChoreoPath> choreoMap = {
+        for (ChoreoPath cp in widget.autoChoreoPaths) cp.name: cp,
+      };
 
-        if (allStates.isNotEmpty) {
+      List<SimSegment> segments =
+          AutoSimulator.extractSimSegments(widget.auto.sequence);
+
+      Pose2d currentPose = widget.autoChoreoPaths.isNotEmpty &&
+              widget.autoChoreoPaths[0].trajectory.states.isNotEmpty
+          ? widget.autoChoreoPaths[0].trajectory.states.first.pose
+          : const Pose2d(Translation2d(), Rotation2d());
+
+      for (SimSegment seg in segments) {
+        if (seg is SimPathSegment) {
+          ChoreoPath? cp = choreoMap[seg.pathName];
+          if (cp == null) continue;
+
+          for (TrajectoryState s in cp.trajectory.states) {
+            allStates.add(s.copyWithTime(s.timeSeconds + timeOffset));
+          }
+
+          if (allStates.isNotEmpty) {
+            timeOffset = allStates.last.timeSeconds;
+            currentPose = allStates.last.pose;
+          }
+        } else if (seg is SimWaitSegment) {
+          TrajectoryState startState = TrajectoryState.pregen(
+            timeOffset,
+            const ChassisSpeeds(),
+            currentPose,
+          );
+          TrajectoryState endState = TrajectoryState.pregen(
+            timeOffset + seg.waitSeconds,
+            const ChassisSpeeds(),
+            currentPose,
+          );
+          allStates.add(startState);
+          allStates.add(endState);
           timeOffset = allStates.last.timeSeconds;
         }
       }
@@ -611,6 +667,7 @@ class _SplitAutoEditorState extends State<SplitAutoEditor>
         simPath = AutoSimulator.simulateAuto(
           widget.autoPaths,
           config,
+          sequence: widget.auto.sequence,
         );
         if (!(simPath?.getTotalTimeSeconds().isFinite ?? false)) {
           simPath = null;
