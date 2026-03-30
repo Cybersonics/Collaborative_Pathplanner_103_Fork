@@ -37,6 +37,7 @@ class AutoEditorPage extends StatefulWidget {
   final SharedPreferences prefs;
   final PathPlannerAuto auto;
   final List<PathPlannerPath> allPaths;
+  final List<PathPlannerAuto> allAutos;
   final List<ChoreoPath> allChoreoPaths;
   final List<String> allPathNames;
   final FieldImage fieldImage;
@@ -52,6 +53,7 @@ class AutoEditorPage extends StatefulWidget {
     required this.prefs,
     required this.auto,
     required this.allPaths,
+    required this.allAutos,
     required this.allChoreoPaths,
     required this.allPathNames,
     required this.fieldImage,
@@ -73,6 +75,23 @@ class _AutoEditorPageState extends State<AutoEditorPage> {
         (p) => p.name == result.pathName);
     if (path == null) return;
 
+    // Check if this path is shared across multiple autos
+    final referencingAutos = PathPlannerAuto.getAutosReferencingPath(
+        path.name, widget.allAutos);
+
+    PathPlannerPath pathToEdit = path;
+
+    if (referencingAutos.length >= 2) {
+      final action = await _showSharedPathWarning(
+          path.name, referencingAutos);
+      if (!mounted) return;
+      if (action == null || action == _SharedPathAction.cancel) return;
+
+      if (action == _SharedPathAction.duplicateAndEdit) {
+        pathToEdit = _duplicatePathForAuto(path);
+      }
+    }
+
     widget.undoStack.clearHistory();
 
     await Navigator.push(
@@ -80,12 +99,12 @@ class _AutoEditorPageState extends State<AutoEditorPage> {
       MaterialPageRoute(
         builder: (context) => PathEditorPage(
           prefs: widget.prefs,
-          path: path,
+          path: pathToEdit,
           fieldImage: widget.fieldImage,
           undoStack: widget.undoStack,
           onRenamed: (newName) {
-            String oldName = path.name;
-            path.renamePath(newName);
+            String oldName = pathToEdit.name;
+            pathToEdit.renamePath(newName);
             widget.auto.updatePathName(oldName, newName);
             widget.auto.saveFile();
           },
@@ -97,14 +116,15 @@ class _AutoEditorPageState extends State<AutoEditorPage> {
           ghostTimeOffset: result.ghostTimeOffset,
           onPathChanged: () {
             // Update linked waypoint positions across all paths
-            if (path.waypoints.first.linkedName != null) {
-              Waypoint.linked[path.waypoints.first.linkedName!] = Pose2d(
-                  path.waypoints.first.anchor,
-                  path.idealStartingState.rotation);
+            if (pathToEdit.waypoints.first.linkedName != null) {
+              Waypoint.linked[pathToEdit.waypoints.first.linkedName!] = Pose2d(
+                  pathToEdit.waypoints.first.anchor,
+                  pathToEdit.idealStartingState.rotation);
             }
-            if (path.waypoints.last.linkedName != null) {
-              Waypoint.linked[path.waypoints.last.linkedName!] = Pose2d(
-                  path.waypoints.last.anchor, path.goalEndState.rotation);
+            if (pathToEdit.waypoints.last.linkedName != null) {
+              Waypoint.linked[pathToEdit.waypoints.last.linkedName!] = Pose2d(
+                  pathToEdit.waypoints.last.anchor,
+                  pathToEdit.goalEndState.rotation);
             }
 
             for (PathPlannerPath p in widget.allPaths) {
@@ -155,6 +175,81 @@ class _AutoEditorPageState extends State<AutoEditorPage> {
       widget.undoStack.clearHistory();
       setState(() {});
     }
+  }
+
+  Future<_SharedPathAction?> _showSharedPathWarning(
+      String pathName, List<String> referencingAutos) {
+    ColorScheme colorScheme = Theme.of(context).colorScheme;
+    return showDialog<_SharedPathAction>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: colorScheme.surfaceTint,
+        title: const Text('Shared Path'),
+        content: SizedBox(
+          width: 350,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '"$pathName" is used by ${referencingAutos.length} autos. '
+                'Editing it will affect all of them.',
+              ),
+              const SizedBox(height: 12),
+              const Text('Referenced by:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              ...referencingAutos
+                  .map((name) => Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Text('• $name'),
+                      )),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_SharedPathAction.cancel),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_SharedPathAction.duplicateAndEdit),
+            child: const Text('Duplicate & Edit'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_SharedPathAction.editAnyway),
+            child: const Text('Edit Anyway'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  PathPlannerPath _duplicatePathForAuto(PathPlannerPath original) {
+    // Generate a unique name for the duplicate
+    final existingNames =
+        widget.allPaths.map((p) => p.name).toSet();
+    String newName = '${original.name} (${widget.auto.name})';
+    int counter = 2;
+    while (existingNames.contains(newName)) {
+      newName = '${original.name} (${widget.auto.name} $counter)';
+      counter++;
+    }
+
+    final duplicate = original.duplicate(newName);
+    duplicate.generateAndSavePath();
+    widget.allPaths.add(duplicate);
+    widget.allPathNames.add(newName);
+
+    // Update this auto to reference the duplicate instead of the original
+    widget.auto.updatePathName(original.name, newName);
+    widget.auto.saveFile();
+
+    return duplicate;
   }
 
   @override
@@ -235,3 +330,5 @@ class _AutoEditorPageState extends State<AutoEditorPage> {
     );
   }
 }
+
+enum _SharedPathAction { editAnyway, duplicateAndEdit, cancel }

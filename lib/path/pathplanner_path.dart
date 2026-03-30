@@ -735,6 +735,36 @@ class PathPlannerPath {
     );
   }
 
+  PathPlannerPath duplicateWithOptions(
+    String newName, {
+    String? folderOverride,
+    bool keepOriginalFolder = true,
+    Map<String, String>? linkedNameMap,
+  }) {
+    PathPlannerPath copy = duplicate(newName);
+
+    if (!keepOriginalFolder) {
+      copy.folder = folderOverride;
+    }
+
+    if (linkedNameMap != null) {
+      for (final waypoint in copy.waypoints) {
+        if (waypoint.linkedName != null &&
+            linkedNameMap.containsKey(waypoint.linkedName)) {
+          String newLinkedName = linkedNameMap[waypoint.linkedName]!;
+          // Register the new linked waypoint with the same position as the original
+          if (Waypoint.linked.containsKey(waypoint.linkedName)) {
+            Waypoint.linked[newLinkedName] =
+                Waypoint.linked[waypoint.linkedName]!;
+          }
+          waypoint.linkedName = newLinkedName;
+        }
+      }
+    }
+
+    return copy;
+  }
+
   List<Translation2d> get pathPositions => [
         for (final p in pathPoints) p.position,
       ];

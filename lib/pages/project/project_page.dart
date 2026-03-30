@@ -8,6 +8,7 @@ import 'package:pathplanner/commands/command.dart';
 import 'package:pathplanner/commands/command_groups.dart';
 import 'package:pathplanner/commands/named_command.dart';
 import 'package:pathplanner/auto/ghost_auto.dart';
+import 'package:pathplanner/auto/duplicate_auto_options.dart';
 import 'package:pathplanner/pages/auto_editor_page.dart';
 import 'package:pathplanner/pages/choreo_path_editor_page.dart';
 import 'package:pathplanner/pages/path_editor_page.dart';
@@ -23,6 +24,7 @@ import 'package:pathplanner/services/pplib_telemetry.dart';
 import 'package:pathplanner/util/prefs.dart';
 import 'package:pathplanner/util/wpimath/geometry.dart';
 import 'package:pathplanner/widgets/conditional_widget.dart';
+import 'package:pathplanner/widgets/dialogs/duplicate_auto_dialog.dart';
 import 'package:pathplanner/widgets/dialogs/management_dialog.dart';
 import 'package:pathplanner/widgets/field_image.dart';
 import 'package:pathplanner/widgets/renamable_title.dart';
@@ -1010,6 +1012,55 @@ class _ProjectPageState extends State<ProjectPage> {
 
   void _openPath(PathPlannerPath path,
       {List<GhostAuto> ghostAutos = const [], num ghostTimeOffset = 0}) async {
+    // Check if this path is shared across multiple autos
+    final referencingAutos = PathPlannerAuto.getAutosReferencingPath(
+        path.name, _autos);
+
+    if (referencingAutos.length >= 2) {
+      ColorScheme colorScheme = Theme.of(this.context).colorScheme;
+      final proceed = await showDialog<bool>(
+        context: this.context,
+        builder: (context) => AlertDialog(
+          backgroundColor: colorScheme.surface,
+          surfaceTintColor: colorScheme.surfaceTint,
+          title: const Text('Shared Path'),
+          content: SizedBox(
+            width: 350,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '"${path.name}" is used by ${referencingAutos.length} autos. '
+                  'Editing it will affect all of them.',
+                ),
+                const SizedBox(height: 12),
+                const Text('Referenced by:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                ...referencingAutos
+                    .map((name) => Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: Text('• $name'),
+                        )),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Edit Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
+    }
+
     await Navigator.push(
       this.context,
       MaterialPageRoute(
@@ -1482,6 +1533,9 @@ class _ProjectPageState extends State<ProjectPage> {
           _sortAutos(_autoSortValue);
         });
       },
+      onDuplicatedWithPaths: _autos[i].choreoAuto
+          ? null
+          : () => _showDuplicateWithPathsDialog(i),
       onDeleted: () {
         _autos[i].delete();
         setState(() {
@@ -1497,6 +1551,7 @@ class _ProjectPageState extends State<ProjectPage> {
               prefs: widget.prefs,
               auto: _autos[i],
               allPaths: _paths,
+              allAutos: _autos,
               allChoreoPaths: _choreoPaths,
               undoStack: widget.undoStack,
               allPathNames: _autos[i].choreoAuto
@@ -1532,6 +1587,52 @@ class _ProjectPageState extends State<ProjectPage> {
         childWhenDragging: Container(),
         child: autoCard,
       );
+    });
+  }
+
+  void _showDuplicateWithPathsDialog(int autoIndex) async {
+    final auto = _autos[autoIndex];
+    final referencedPathNames = auto.getAllPathNames().toSet().toList();
+    final BuildContext ctx = this.context;
+
+    final result = await showDialog<DuplicateAutoOptions>(
+      context: ctx,
+      builder: (dialogContext) => DuplicateAutoDialog(
+        autoName: auto.name,
+        referencedPathNames: referencedPathNames,
+        pathFolders: _pathFolders,
+        existingAutoNames: _autos.map((a) => a.name).toSet(),
+        existingPathNames: _paths.map((p) => p.name).toSet(),
+        allPaths: _paths,
+      ),
+    );
+
+    if (result == null) return;
+
+    // Create new folder if requested
+    if (result.createNewFolder &&
+        result.destinationFolder != null &&
+        !_pathFolders.contains(result.destinationFolder)) {
+      _pathFolders.add(result.destinationFolder!);
+      widget.prefs.setStringList(PrefsKeys.pathFolders, _pathFolders);
+      widget.onFoldersChanged?.call();
+    }
+
+    final (newAuto, newPaths) = auto.duplicateWithPaths(
+      options: result,
+      allPaths: _paths,
+    );
+
+    for (final path in newPaths) {
+      path.saveFile();
+    }
+    newAuto.saveFile();
+
+    setState(() {
+      _paths.addAll(newPaths);
+      _autos.add(newAuto);
+      _sortPaths(_pathSortValue);
+      _sortAutos(_autoSortValue);
     });
   }
 

@@ -1,12 +1,15 @@
 import 'dart:convert';
 
+import 'package:collection/collection.dart';
 import 'package:file/file.dart';
 import 'package:path/path.dart';
+import 'package:pathplanner/auto/duplicate_auto_options.dart';
 import 'package:pathplanner/commands/named_command.dart';
 import 'package:pathplanner/commands/command.dart';
 import 'package:pathplanner/commands/command_groups.dart';
 import 'package:pathplanner/commands/path_command.dart';
 import 'package:pathplanner/pages/project/project_page.dart';
+import 'package:pathplanner/path/pathplanner_path.dart';
 import 'package:pathplanner/services/log.dart';
 
 const String fileVersion = '2025.0';
@@ -56,6 +59,71 @@ class PathPlannerAuto {
       folder: folder,
       choreoAuto: choreoAuto,
     );
+  }
+
+  (PathPlannerAuto, List<PathPlannerPath>) duplicateWithPaths({
+    required DuplicateAutoOptions options,
+    required List<PathPlannerPath> allPaths,
+  }) {
+    // Deduplicate path names referenced by this auto
+    final Set<String> uniquePathNames = getAllPathNames().toSet();
+
+    // Build linked name map if duplicating linked waypoints
+    Map<String, String>? linkedNameMap;
+    if (options.duplicateLinkedWaypoints) {
+      linkedNameMap = {};
+      for (final pathName in options.pathsToDuplicate) {
+        final path = allPaths.firstWhereOrNull((p) => p.name == pathName);
+        if (path != null) {
+          for (final waypoint in path.waypoints) {
+            if (waypoint.linkedName != null &&
+                !linkedNameMap.containsKey(waypoint.linkedName)) {
+              linkedNameMap[waypoint.linkedName!] =
+                  '${options.newAutoName} - ${waypoint.linkedName}';
+            }
+          }
+        }
+      }
+    }
+
+    // Duplicate selected paths
+    final List<PathPlannerPath> newPaths = [];
+    final Map<String, String> pathNameMap = {}; // old name -> new name
+    final Set<String> existingPathNames =
+        allPaths.map((p) => p.name).toSet();
+
+    for (final pathName in uniquePathNames) {
+      if (!options.pathsToDuplicate.contains(pathName)) continue;
+
+      final path = allPaths.firstWhereOrNull((p) => p.name == pathName);
+      if (path == null) continue;
+
+      String newPathName = '${options.newAutoName} - $pathName';
+      while (existingPathNames.contains(newPathName) ||
+          newPaths.any((p) => p.name == newPathName)) {
+        newPathName = 'Copy of $newPathName';
+      }
+
+      final newPath = path.duplicateWithOptions(
+        newPathName,
+        folderOverride: options.destinationFolder,
+        keepOriginalFolder: options.keepOriginalFolder,
+        linkedNameMap: linkedNameMap,
+      );
+      newPaths.add(newPath);
+      pathNameMap[pathName] = newPathName;
+    }
+
+    // Clone the auto
+    final newAuto = duplicate(options.newAutoName);
+
+    // Rewrite PathCommand references for duplicated paths
+    for (final entry in pathNameMap.entries) {
+      newAuto._updatePathNameInCommands(
+          newAuto.sequence.commands, entry.key, entry.value);
+    }
+
+    return (newAuto, newPaths);
   }
 
   PathPlannerAuto.fromJson(
@@ -236,6 +304,15 @@ class PathPlannerAuto {
         _handleMissingPaths(cmd.commands, pathNames);
       }
     }
+  }
+
+  static List<String> getAutosReferencingPath(
+      String pathName, List<PathPlannerAuto> autos) {
+    return [
+      for (final auto in autos)
+        if (!auto.choreoAuto && auto.getAllPathNames().contains(pathName))
+          auto.name,
+    ];
   }
 
   @override

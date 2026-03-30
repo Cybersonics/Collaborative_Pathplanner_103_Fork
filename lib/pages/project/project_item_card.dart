@@ -13,6 +13,7 @@ class ProjectItemCard extends StatefulWidget {
   final List<List<Translation2d>> paths;
   final VoidCallback onOpened;
   final VoidCallback? onDuplicated;
+  final VoidCallback? onDuplicatedWithPaths;
   final VoidCallback? onDeleted;
   final ValueChanged<String>? onRenamed;
   final bool compact;
@@ -27,6 +28,7 @@ class ProjectItemCard extends StatefulWidget {
     required this.paths,
     required this.onOpened,
     this.onDuplicated,
+    this.onDuplicatedWithPaths,
     this.onDeleted,
     this.onRenamed,
     this.compact = false,
@@ -80,13 +82,15 @@ class _ProjectItemCardState extends State<ProjectItemCard> {
                             onSelected: (value) {
                               if (value == 'duplicate') {
                                 widget.onDuplicated?.call();
+                              } else if (value == 'duplicateWithPaths') {
+                                widget.onDuplicatedWithPaths?.call();
                               } else if (value == 'delete') {
                                 _showDeleteDialog();
                               }
                             },
                             itemBuilder: (_) {
-                              return const [
-                                PopupMenuItem(
+                              return [
+                                const PopupMenuItem(
                                   value: 'duplicate',
                                   child: Row(
                                     children: [
@@ -96,7 +100,18 @@ class _ProjectItemCardState extends State<ProjectItemCard> {
                                     ],
                                   ),
                                 ),
-                                PopupMenuItem(
+                                if (widget.onDuplicatedWithPaths != null)
+                                  const PopupMenuItem(
+                                    value: 'duplicateWithPaths',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.copy_all),
+                                        SizedBox(width: 12),
+                                        Text('Duplicate with Paths'),
+                                      ],
+                                    ),
+                                  ),
+                                const PopupMenuItem(
                                   value: 'delete',
                                   child: Row(
                                     children: [
