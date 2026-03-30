@@ -76,6 +76,7 @@ This fork adds a **Ghost Auto Overlay System** that does not exist in the upstre
 
 5. **LAN Sync (Real-Time Multi-Peer)** — Zero-configuration peer discovery via UDP broadcast. Deterministic WebSocket connections with automatic port fallback (5811–5821). Multiple PathPlanner instances on the same network see each other's current auto as a ghost in real-time. Includes keepalive, reconnect logic, backpressure, and graceful ghost fade on disconnect.
 
+![Turning on LAN Search](https://github.com/user-attachments/assets/d3167205-aa40-4c7d-b957-81ba378ca2b9)
 
 
 ### Files Added or Modified
