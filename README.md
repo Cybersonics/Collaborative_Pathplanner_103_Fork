@@ -162,7 +162,46 @@ When ghosts are loaded, PathPlanner automatically checks for collisions between 
 
 ---
 
+---
 
+## Duplicate Auto with Paths
+
+![duplicate with paths3](https://github.com/user-attachments/assets/dc96344e-cd62-4792-a547-70fbaf493a45)
+
+When you duplicate an auto normally, the copy still references the same shared paths as the original. If you then edit those paths for the new auto, you'll break every other auto that uses them. **Duplicate with Paths** solves this by copying the auto *and* its paths together, so you can safely edit the copies without affecting anything else.
+
+### Shared Path Warning
+
+When you open a path for editing (either from the auto editor or the project browser) that is used by **2 or more autos**, a warning dialog appears:
+
+- Lists every auto that references the path
+- **Edit Anyway** — proceed to edit the shared original (all autos will be affected)
+- **Duplicate & Edit** *(auto editor only)* — automatically creates a private copy of the path for your current auto and opens the copy for editing
+- **Cancel** — go back without editing
+
+### Using Duplicate with Paths
+
+1. In the project browser, **right-click** (or open the context menu on) any auto card.
+2. Select **Duplicate with Paths** (copy-all icon).
+3. A wizard dialog appears with four sections:
+
+| Section | What It Does |
+|---|---|
+| **Auto Name** | Pre-filled with "Copy of {name}". Edit to whatever you like. Validates against existing auto names. |
+| **Path Selection** | Checkboxes for every path the auto references. Check the ones you want duplicated; unchecked paths will still be referenced by name (shared). |
+| **Destination Folder** | Choose where duplicated paths are saved: *Same as original*, *No folder* (root), any existing folder, or *New folder* (creates a folder named after the new auto). |
+| **Linked Waypoints** | If any checked paths have linked waypoints, choose whether to duplicate the links (new independent link IDs) or keep the originals (paths stay linked to the same shared waypoints). |
+
+4. Click **Duplicate**. The new auto and its duplicated paths are created and saved immediately.
+5. Open the new auto and edit its paths freely — the originals are untouched.
+
+### When to Use What
+
+| Scenario | Recommended Action |
+|---|---|
+| Creating a new auto that reuses most of an existing auto's paths but needs tweaks | **Duplicate with Paths** — check only the paths you plan to modify |
+| Quick one-off edit to a shared path from within the auto editor | **Duplicate & Edit** from the shared path warning |
+| Intentionally editing a path that multiple autos should share | **Edit Anyway** from the shared path warning |
 
 ## A note on AI usage
 
