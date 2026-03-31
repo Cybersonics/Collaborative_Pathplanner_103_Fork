@@ -1,7 +1,7 @@
 
-Download link for this Fork:  https://github.com/Cybersonics/Collaborative_Pathplanner_103_Fork/releases/download/v2/PathPlannerGhost_Windows.zip
+[![Download Latest Release](https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge&logo=github)](https://github.com/Cybersonics/Collaborative_Pathplanner_103_Fork/releases)
 
-This executable is not signed, so windows will show the "Protected your PC" message. Click on "More Info" and "Run anyway" and you should be off to the races.
+> **Note:** This executable is not signed, so Windows will show the "Protected your PC" message. Click on **"More Info"** and **"Run anyway"** and you should be off to the races.
 
 
 
