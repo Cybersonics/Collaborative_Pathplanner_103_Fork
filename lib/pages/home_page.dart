@@ -855,6 +855,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       builder: (BuildContext context) {
         final teamController = TextEditingController();
         final pathController = TextEditingController(text: lastPath);
+        final destController = TextEditingController(
+          text: _projectDir?.path ?? '',
+        );
         final formKey = GlobalKey<FormState>();
 
         return StatefulBuilder(
@@ -936,6 +939,46 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: destController,
+                              decoration: const InputDecoration(
+                                labelText: 'Save ghost files to',
+                                hintText: 'Choose a folder outside deploy',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.folder_open),
+                            tooltip: 'Browse',
+                            onPressed: () async {
+                              String? dir = await getDirectoryPath(
+                                confirmButtonText:
+                                    'Select destination folder',
+                                initialDirectory: destController.text.isNotEmpty
+                                    ? destController.text
+                                    : (_projectDir?.path ?? ''),
+                              );
+                              if (dir != null) {
+                                setDialogState(() {
+                                  destController.text = dir;
+                                });
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -951,6 +994,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       Navigator.of(context).pop(_GhostImportParams(
                         teamName: teamController.text.trim(),
                         sourcePath: pathController.text.trim(),
+                        destPath: destController.text.trim(),
                       ));
                     }
                   },
@@ -1031,9 +1075,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     List<PathPlannerAuto> foreignAutos =
         await PathPlannerAuto.loadAllAutosInDir(foreignAutosDir.path, fs);
 
-    // Create ghosts output directory: <our_project>/pathplanner/ghosts/<teamname>/
+    // Create ghosts output directory: <user-chosen dest>/ghosts/<teamname>/
     Directory ghostsDir =
-        fs.directory(join(_pathplannerDir.path, 'ghosts', teamName));
+        fs.directory(join(result.destPath, 'ghosts', teamName));
     ghostsDir.createSync(recursive: true);
 
     int exported = 0;
@@ -1101,7 +1145,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       String message =
           'Imported $exported ghost auto(s) from $teamName';
       if (failed > 0) message += ' ($failed failed)';
-      message += '\nSaved to ghosts/$teamName/';
+      message += '\nSaved to ${ghostsDir.path}';
       ScaffoldMessenger.of(this.context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -1197,9 +1241,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 class _GhostImportParams {
   final String teamName;
   final String sourcePath;
+  final String destPath;
 
   const _GhostImportParams({
     required this.teamName,
     required this.sourcePath,
+    required this.destPath,
   });
 }
