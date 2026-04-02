@@ -28,7 +28,8 @@ class _DuplicateAutoDialogState extends State<DuplicateAutoDialog> {
   late final TextEditingController _nameController;
   late final Map<String, bool> _pathChecks;
   String _folderSelection = _sameAsOriginal;
-  bool _duplicateLinkedWaypoints = false;
+  bool _duplicateLinkedWaypoints = true;
+  bool _mirrorPaths = false;
 
   static const String _sameAsOriginal = '__same_as_original__';
   static const String _noFolder = '__no_folder__';
@@ -225,6 +226,23 @@ class _DuplicateAutoDialogState extends State<DuplicateAutoDialog> {
                   ),
                 ),
               ],
+
+              // Section 5: Mirror
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                title: const Text('Mirror duplicated paths (flip top \u2194 bottom)'),
+                value: _mirrorPaths,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                onChanged: _pathChecks.values.any((v) => v)
+                    ? (value) {
+                        setState(() {
+                          _mirrorPaths = value ?? false;
+                        });
+                      }
+                    : null,
+              ),
             ],
           ),
         ),
@@ -257,6 +275,7 @@ class _DuplicateAutoDialogState extends State<DuplicateAutoDialog> {
                     keepOriginalFolder: _folderSelection == _sameAsOriginal,
                     createNewFolder: isNewFolder,
                     duplicateLinkedWaypoints: _duplicateLinkedWaypoints,
+                    mirrorPaths: _mirrorPaths,
                   ));
                 }
               : null,

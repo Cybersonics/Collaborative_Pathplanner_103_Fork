@@ -765,6 +765,39 @@ class PathPlannerPath {
     return copy;
   }
 
+  void mirrorY(num fieldSizeY) {
+    for (final waypoint in waypoints) {
+      waypoint.anchor = Translation2d(waypoint.anchor.x, fieldSizeY - waypoint.anchor.y);
+      if (waypoint.prevControl != null) {
+        waypoint.prevControl = Translation2d(waypoint.prevControl!.x, fieldSizeY - waypoint.prevControl!.y);
+      }
+      if (waypoint.nextControl != null) {
+        waypoint.nextControl = Translation2d(waypoint.nextControl!.x, fieldSizeY - waypoint.nextControl!.y);
+      }
+      if (waypoint.linkedName != null && Waypoint.linked.containsKey(waypoint.linkedName)) {
+        final pose = Waypoint.linked[waypoint.linkedName]!;
+        Waypoint.linked[waypoint.linkedName!] = Pose2d(
+          Translation2d(pose.translation.x, fieldSizeY - pose.translation.y),
+          -pose.rotation,
+        );
+      }
+    }
+
+    goalEndState.rotation = -goalEndState.rotation;
+    idealStartingState.rotation = -idealStartingState.rotation;
+
+    for (final target in rotationTargets) {
+      target.rotation = -target.rotation;
+    }
+
+    for (final zone in pointTowardsZones) {
+      zone.fieldPosition = Translation2d(zone.fieldPosition.x, fieldSizeY - zone.fieldPosition.y);
+      zone.rotationOffset = -zone.rotationOffset;
+    }
+
+    generatePathPoints();
+  }
+
   List<Translation2d> get pathPositions => [
         for (final p in pathPoints) p.position,
       ];

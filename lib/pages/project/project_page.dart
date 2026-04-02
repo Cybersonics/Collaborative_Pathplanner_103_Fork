@@ -1621,6 +1621,7 @@ class _ProjectPageState extends State<ProjectPage> {
     final (newAuto, newPaths) = auto.duplicateWithPaths(
       options: result,
       allPaths: _paths,
+      fieldSizeY: widget.fieldImage.getFieldSizeMeters().height,
     );
 
     for (final path in newPaths) {

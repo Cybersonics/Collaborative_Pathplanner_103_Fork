@@ -64,6 +64,7 @@ class PathPlannerAuto {
   (PathPlannerAuto, List<PathPlannerPath>) duplicateWithPaths({
     required DuplicateAutoOptions options,
     required List<PathPlannerPath> allPaths,
+    num? fieldSizeY,
   }) {
     // Deduplicate path names referenced by this auto
     final Set<String> uniquePathNames = getAllPathNames().toSet();
@@ -110,6 +111,9 @@ class PathPlannerAuto {
         keepOriginalFolder: options.keepOriginalFolder,
         linkedNameMap: linkedNameMap,
       );
+      if (options.mirrorPaths && fieldSizeY != null) {
+        newPath.mirrorY(fieldSizeY);
+      }
       newPaths.add(newPath);
       pathNameMap[pathName] = newPathName;
     }

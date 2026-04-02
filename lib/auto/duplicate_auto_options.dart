@@ -5,6 +5,7 @@ class DuplicateAutoOptions {
   final bool keepOriginalFolder;
   final bool createNewFolder;
   final bool duplicateLinkedWaypoints;
+  final bool mirrorPaths;
 
   const DuplicateAutoOptions({
     required this.newAutoName,
@@ -13,5 +14,6 @@ class DuplicateAutoOptions {
     this.keepOriginalFolder = true,
     this.createNewFolder = false,
     this.duplicateLinkedWaypoints = false,
+    this.mirrorPaths = false,
   });
 }
